@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Vision Script Simulator</title>
+<style>
+  :root{
+    --bg-0:#08090b; --bg-1:#101216; --panel-2:#191c22; --line:#262932;
+    --text:#eef0f4; --muted:#8b8f9c; --dim:#585c68;
+    --accent:#5b8cff; --accent-2:#8ab4ff; --good:#3ecf8e; --bad:#ff5c5c; --warn:#f2c94c;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,sans-serif;
+    background:var(--bg-0); color:var(--text); display:flex; flex-direction:column; height:100vh; overflow:hidden;
+  }
+
+  header{
+    padding:13px 22px; border-bottom:1px solid var(--line); display:flex; align-items:center; gap:12px;
+    background:linear-gradient(180deg,#121317,#0f1014); flex-shrink:0; z-index:3;
+  }
+  header .logo{
+    width:26px; height:26px; border-radius:7px; background:linear-gradient(155deg,#3a3d46,#1a1b1f);
+    display:flex; align-items:center; justify-content:center; box-shadow:inset 0 1px 0 rgba(255,255,255,.08), 0 1px 3px rgba(0,0,0,.5);
+  }
+  header .logo .dot{ width:6px; height:6px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  header h1{ font-size:14px; margin:0; font-weight:600; }
+  header .src{
+    color:var(--muted); font-size:11.5px; font-family:ui-monospace,Menlo,Consolas,monospace;
+    background:var(--panel-2); border:1px solid var(--line); padding:3px 9px; border-radius:6px;
+  }
+  header .badge{ margin-left:auto; font-size:11px; color:var(--muted); display:flex; align-items:center; gap:6px; }
+  header .badge .led{ width:7px; height:7px; border-radius:50%; background:var(--dim); }
+  header .badge .led.on{ background:var(--good); box-shadow:0 0 7px var(--good); }
+  header .badge .led.stop{ background:var(--bad); box-shadow:0 0 7px var(--bad); }
+
+  main{ flex:1; display:flex; min-height:0; }
+
+  /* ---------------- stage ---------------- */
+  .stage{
+    flex:1.4; position:relative; display:flex; align-items:center; justify-content:center;
+    background:
+      radial-gradient(ellipse 65% 50% at 50% 32%, #1d2027 0%, transparent 62%),
+      radial-gradient(ellipse 130% 85% at 50% 122%, #1a1c21 0%, var(--bg-0) 55%),
+      linear-gradient(180deg, var(--bg-1), var(--bg-0));
+    overflow:hidden;
+  }
+  .stage::before{
+    content:""; position:absolute; inset:0; opacity:.45; pointer-events:none;
+    background:
+      linear-gradient(rgba(255,255,255,.025) 1px, transparent 1px) 0 0/100% 40px,
+      linear-gradient(90deg, rgba(255,255,255,.025) 1px, transparent 1px) 0 0/40px 100%;
+    mask-image:radial-gradient(ellipse 70% 62% at 50% 46%, #000 0%, transparent 75%);
+  }
+  .dust{ position:absolute; border-radius:50%; background:#fff; opacity:0; pointer-events:none; filter:blur(.3px); }
+  .stage-vignette{ position:absolute; inset:0; pointer-events:none; box-shadow:inset 0 0 150px 44px rgba(0,0,0,.68); z-index:2; }
+
+  .platform{
+    position:absolute; left:50%; bottom:24%; width:260px; height:24px; transform:translateX(-50%);
+    border-radius:50%; background:radial-gradient(ellipse closest-side, #23262d, #16171b 70%, transparent 100%);
+    box-shadow:0 1px 0 rgba(255,255,255,.06), inset 0 3px 6px rgba(0,0,0,.5);
+  }
+  .stage-floor{
+    position:absolute; left:50%; bottom:24.6%; width:220px; height:26px; transform:translateX(-50%);
+    background:radial-gradient(ellipse closest-side, rgba(0,0,0,.6), rgba(0,0,0,0) 75%);
+    filter:blur(2px); transition:width .25s ease, opacity .25s ease; z-index:1;
+  }
+  .reflection{
+    position:absolute; left:50%; bottom:24.5%; transform:translateX(-50%) scaleY(-1);
+    -webkit-mask-image:linear-gradient(to bottom, rgba(0,0,0,.26), transparent 65%);
+    mask-image:linear-gradient(to bottom, rgba(0,0,0,.26), transparent 65%);
+    opacity:.5; filter:blur(1px); pointer-events:none; z-index:0;
+  }
+
+  .bubble{
+    position:absolute; top:11%; left:50%; transform:translateX(-50%) translateY(6px) scale(.94);
+    max-width:min(70%, 360px); background:#f4f5f7; color:#15171c; padding:10px 16px; border-radius:16px;
+    font-size:14.5px; line-height:1.35; text-align:center; box-shadow:0 10px 26px rgba(0,0,0,.45);
+    opacity:0; transition:opacity .22s ease, transform .22s ease; pointer-events:none; z-index:5; font-weight:500;
+  }
+  .bubble::after{
+    content:""; position:absolute; left:50%; bottom:-7px; transform:translateX(-50%);
+    border-width:8px 7px 0 7px; border-style:solid; border-color:#f4f5f7 transparent transparent transparent;
+  }
+  .bubble.show{ opacity:1; transform:translateX(-50%) translateY(0) scale(1); }
+
+  .flash{
+    position:absolute; inset:0; background:radial-gradient(ellipse at 50% 40%, rgba(255,60,60,.35), rgba(120,10,10,.15) 70%);
+    opacity:0; pointer-events:none; transition:opacity .18s ease; z-index:4;
+  }
+  .flash.show{ opacity:1; animation:flashPulse 1s ease-in-out infinite; }
+  @keyframes flashPulse{ 0%,100%{ opacity:.55 } 50%{ opacity:.9 } }
+
+  .stopchip{
+    position:absolute; bottom:16%; left:50%; transform:translateX(-50%) translateY(6px); opacity:0;
+    background:#2a1414; border:1px solid #5c2323; color:#ff9a9a; font-size:11px; font-weight:600;
+    letter-spacing:.06em; padding:5px 12px; border-radius:20px; transition:opacity .2s, transform .2s; z-index:5;
+  }
+  .stopchip.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---------------- robot rig ---------------- */
+  .rig{
+    position:relative; transform-origin:50% 88%; transition:transform .45s cubic-bezier(.34,1.4,.4,1);
+    filter:drop-shadow(0 12px 16px rgba(0,0,0,.5));
+  }
+  .rig.walk{ animation:bob .5s ease-in-out infinite; }
+  .rig.dance{ animation:dance .4s cubic-bezier(.45,0,.55,1) infinite; }
+  @keyframes bob{ 0%,100%{ transform:translateY(0) rotate(0deg) } 50%{ transform:translateY(-11px) rotate(1deg) } }
+  @keyframes dance{
+    0%{ transform:translateY(0) rotate(-8deg) } 25%{ transform:translateY(-15px) rotate(0deg) }
+    50%{ transform:translateY(0) rotate(8deg) } 75%{ transform:translateY(-15px) rotate(0deg) }
+    100%{ transform:translateY(0) rotate(-8deg) }
+  }
+  .pupil-l, .pupil-r{ transition:cx .45s cubic-bezier(.22,1,.36,1), cy .45s cubic-bezier(.22,1,.36,1); }
+  .glint-l, .glint-r{ transition:cx .45s cubic-bezier(.22,1,.36,1); }
+  .eyelid-l, .eyelid-r{ transform-origin:center; transition:transform .08s ease; }
+
+  /* ---------------- sidebar ---------------- */
+  .sidebar{
+    flex:1; min-width:350px; max-width:440px; border-left:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0; background:var(--bg-1);
+  }
+  .panel{ padding:15px 16px; border-bottom:1px solid var(--line); }
+  .panel h2{ font-size:10.5px; text-transform:uppercase; letter-spacing:.09em; color:var(--muted); margin:0 0 11px; font-weight:700; }
+  .controls{ display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+  button{
+    background:var(--panel-2); color:var(--text); border:1px solid var(--line); border-radius:8px;
+    padding:7px 13px; font-size:12.5px; font-weight:600; cursor:pointer; transition:border-color .15s, background .15s, transform .05s;
+  }
+  button:hover{ border-color:var(--accent-2); background:#1e222b; }
+  button:active{ transform:scale(.96); }
+  button.primary{ background:linear-gradient(180deg,#6c93ff,#4f79ea); border-color:#4f79ea; color:#fff; box-shadow:0 3px 10px rgba(91,140,255,.35); }
+  button.primary:hover{ background:linear-gradient(180deg,#79a0ff,#5b8cff); }
+  .speed{ display:flex; align-items:center; gap:7px; color:var(--muted); font-size:11.5px; margin-left:auto; }
+  .speed input[type=range]{ accent-color:var(--accent); width:80px; }
+  .progress-track{ margin-top:12px; height:4px; border-radius:2px; background:var(--line); overflow:hidden; }
+  .progress-fill{ height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent-2)); transition:width .15s linear; }
+
+  .log{ flex:1; overflow-y:auto; font-family:ui-monospace,Menlo,Consolas,monospace; font-size:12px; padding-top:2px; }
+  .log .row{ padding:6.5px 16px; border-bottom:1px solid #1a1c22; display:flex; gap:9px; align-items:baseline; transition:background .15s; }
+  .log .row.done{ opacity:.42; }
+  .log .row.active{ background:linear-gradient(90deg, rgba(91,140,255,.16), rgba(91,140,255,.02)); border-left:2px solid var(--accent); padding-left:14px; }
+  .log .ln{ color:var(--dim); min-width:26px; text-align:right; font-size:11px; }
+  .log .cmd{ color:var(--accent-2); font-weight:600; }
+  .log .arg{ color:var(--good); }
+  .log .sleep{ color:#c99bff; }
+  .log .logmsg{ color:var(--warn); font-style:italic; }
+
+  .state{ display:grid; grid-template-columns:1fr 1fr; gap:8px 14px; font-size:12px; color:var(--muted); }
+  .state span{ display:flex; align-items:center; }
+  .state b{ color:var(--text); font-weight:600; font-variant-numeric:tabular-nums; }
+  footer{ padding:7px 16px; font-size:10.5px; color:var(--dim); border-top:1px solid var(--line); background:var(--bg-1); flex-shrink:0; }
+</style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="dot" id="hbLed"></div></div>
+  <h1>Vision Script Simulator</h1>
+  <span class="src" id="srcName"></span>
+  <span class="badge"><span class="led on" id="statusLed"></span><span id="statusText">idle</span></span>
+</header>
+<main>
+  <div class="stage" id="stageEl">
+    <div class="stage-vignette"></div>
+    <div class="platform"></div>
+    <div class="bubble" id="bubble"></div>
+    <div class="flash" id="flash"></div>
+    <div class="stopchip" id="stopchip">EMERGENCY STOP</div>
+    <div class="stage-floor" id="floor"></div>
+
+    <svg class="reflection" id="reflection" width="360" height="90" viewBox="10 190 340 70" style="pointer-events:none;">
+      <use href="#robotGroup"/>
+    </svg>
+<div class="rig" id="rig">
+  <!--
+    Voxel robot head matching the provided reference sheet:
+    blocky white head, two huge dark circular eyes, small top nub,
+    twin dark neck posts, two-lobed base.
+  -->
+  <svg id="robot" width="360" height="300" viewBox="0 0 360 300" style="overflow:visible;">
+    <defs>
+      <linearGradient id="voxLight" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#ffffff"/>
+        <stop offset="55%" stop-color="#f0f1f4"/>
+        <stop offset="100%" stop-color="#d8dbe1"/>
+      </linearGradient>
+      <linearGradient id="voxSide" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#c8ccd3"/>
+        <stop offset="100%" stop-color="#e8eaee"/>
+      </linearGradient>
+      <linearGradient id="baseDark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#4a4d55"/>
+        <stop offset="45%" stop-color="#2e3036"/>
+        <stop offset="100%" stop-color="#1a1b1f"/>
+      </linearGradient>
+      <linearGradient id="neckDark" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#3a3c42"/>
+        <stop offset="100%" stop-color="#222326"/>
+      </linearGradient>
+      <radialGradient id="pupilVox" cx="42%" cy="38%" r="62%">
+        <stop offset="0%" stop-color="#2a2c34"/>
+        <stop offset="55%" stop-color="#0a0b0e"/>
+        <stop offset="100%" stop-color="#000000"/>
+      </radialGradient>
+    </defs>
+
+    <g id="robotGroup">
+      <!-- BASE (two-lobed voxel feet) -->
+      <g id="base">
+        <rect x="108" y="232" width="56" height="28" fill="url(#baseDark)"/>
+        <rect x="108" y="232" width="56" height="6" fill="#5a5d66"/>
+        <rect x="108" y="232" width="6" height="28" fill="#1e1f23"/>
+        <rect x="108" y="254" width="56" height="6" fill="#121314"/>
+        <rect x="196" y="232" width="56" height="28" fill="url(#baseDark)"/>
+        <rect x="196" y="232" width="56" height="6" fill="#5a5d66"/>
+        <rect x="246" y="232" width="6" height="28" fill="#1e1f23"/>
+        <rect x="196" y="254" width="56" height="6" fill="#121314"/>
+        <rect x="156" y="236" width="48" height="16" fill="#25272c"/>
+        <rect x="156" y="236" width="48" height="4" fill="#3a3c42"/>
+      </g>
+
+      <!-- NECK (two dark posts) -->
+      <g id="neck">
+        <rect x="148" y="198" width="18" height="38" fill="url(#neckDark)"/>
+        <rect x="148" y="198" width="4" height="38" fill="#16171a"/>
+        <rect x="148" y="198" width="18" height="5" fill="#4a4c52"/>
+        <rect x="194" y="198" width="18" height="38" fill="url(#neckDark)"/>
+        <rect x="208" y="198" width="4" height="38" fill="#16171a"/>
+        <rect x="194" y="198" width="18" height="5" fill="#4a4c52"/>
+      </g>
+
+      <!-- HEAD -->
+      <g id="head">
+        <!-- top nub -->
+        <rect x="164" y="14" width="32" height="16" fill="url(#voxLight)"/>
+        <rect x="164" y="14" width="32" height="4" fill="#ffffff"/>
+        <rect x="164" y="14" width="4" height="16" fill="#c5c8d0"/>
+
+        <!-- crown -->
+        <rect x="88" y="30" width="184" height="16" fill="url(#voxLight)"/>
+        <rect x="88" y="30" width="184" height="4" fill="#ffffff"/>
+        <rect x="72" y="38" width="16" height="16" fill="url(#voxLight)"/>
+        <rect x="272" y="38" width="16" height="16" fill="url(#voxLight)"/>
+
+        <!-- main body -->
+        <rect x="56" y="46" width="248" height="152" fill="url(#voxLight)"/>
+        <rect x="56" y="46" width="12" height="152" fill="#c8ccd4"/>
+        <rect x="68" y="46" width="8" height="152" fill="#d6d9e0"/>
+        <rect x="292" y="46" width="12" height="152" fill="#b8bcc6"/>
+        <rect x="68" y="46" width="224" height="10" fill="#ffffff"/>
+        <rect x="56" y="182" width="248" height="16" fill="#cfd2da"/>
+        <rect x="56" y="190" width="248" height="8" fill="#b4b8c2"/>
+
+        <!-- side lobes -->
+        <rect x="40" y="70" width="20" height="100" fill="url(#voxLight)"/>
+        <rect x="40" y="70" width="6" height="100" fill="#b8bcc6"/>
+        <rect x="40" y="70" width="20" height="8" fill="#ffffff"/>
+        <rect x="300" y="70" width="20" height="100" fill="url(#voxLight)"/>
+        <rect x="314" y="70" width="6" height="100" fill="#a8acb6"/>
+        <rect x="300" y="70" width="20" height="8" fill="#ffffff"/>
+
+        <rect x="72" y="186" width="16" height="12" fill="#cfd2da"/>
+        <rect x="272" y="186" width="16" height="12" fill="#cfd2da"/>
+
+        <!-- edge outline -->
+        <rect x="56" y="46" width="248" height="2" fill="#a0a4ae"/>
+        <rect x="56" y="196" width="248" height="2" fill="#8a8e98"/>
+        <rect x="56" y="46" width="2" height="152" fill="#9a9ea8"/>
+        <rect x="302" y="46" width="2" height="152" fill="#8a8e98"/>
+
+        <!-- LEFT EYE -->
+        <g id="eyeL">
+          <rect x="72" y="68" width="96" height="96" rx="8" fill="#e8eaee"/>
+          <rect x="76" y="72" width="88" height="88" rx="6" fill="#f6f7f9"/>
+          <circle cx="120" cy="116" r="40" fill="#1a1b1f"/>
+          <circle cx="120" cy="116" r="36" fill="#0d0e11"/>
+          <g id="eyelid-l" class="eyelid-l">
+            <circle class="pupil-l" id="pupilL" cx="120" cy="116" r="28" fill="url(#pupilVox)"/>
+            <circle class="glint-l" id="glintL" cx="108" cy="102" r="7" fill="#ffffff" opacity=".92"/>
+            <circle cx="130" cy="128" r="3.5" fill="#ffffff" opacity=".28"/>
+          </g>
+        </g>
+
+        <!-- RIGHT EYE -->
+        <g id="eyeR">
+          <rect x="192" y="68" width="96" height="96" rx="8" fill="#e8eaee"/>
+          <rect x="196" y="72" width="88" height="88" rx="6" fill="#f6f7f9"/>
+          <circle cx="240" cy="116" r="40" fill="#1a1b1f"/>
+          <circle cx="240" cy="116" r="36" fill="#0d0e11"/>
+          <g id="eyelid-r" class="eyelid-r">
+            <circle class="pupil-r" id="pupilR" cx="240" cy="116" r="28" fill="url(#pupilVox)"/>
+            <circle class="glint-r" id="glintR" cx="228" cy="102" r="7" fill="#ffffff" opacity=".92"/>
+            <circle cx="250" cy="128" r="3.5" fill="#ffffff" opacity=".28"/>
+          </g>
+        </g>
+
+        <!-- bridge between eyes -->
+        <rect x="168" y="88" width="24" height="56" fill="#e4e6eb"/>
+        <rect x="168" y="88" width="24" height="6" fill="#ffffff"/>
+        <rect x="168" y="88" width="4" height="56" fill="#c8ccd4"/>
+      </g>
+    </g>
+  </svg></div>
+  </div>
+
+  <div class="sidebar">
+    <div class="panel">
+      <h2>Playback</h2>
+      <div class="controls">
+        <button class="primary" id="btnPlay">▶&nbsp; Play</button>
+        <button id="btnStep">Step</button>
+        <button id="btnReset">⟲&nbsp; Reset</button>
+        <span class="speed">
+          Speed
+          <input type="range" id="speed" min="0.25" max="8" step="0.25" value="1"/>
+          <span id="speedVal">1×</span>
+        </span>
+      </div>
+      <div class="progress-track"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
+    <div class="panel">
+      <h2>Robot state</h2>
+      <div class="state" id="state"></div>
+    </div>
+    <div class="panel" style="border-bottom:none; flex:1; display:flex; flex-direction:column; min-height:0; padding-bottom:0;">
+      <h2 style="padding:0 16px;">Instruction log</h2>
+      <div class="log" id="log"></div>
+    </div>
+  </div>
+</main>
+<footer>Compiled Vision Script IR, executed entirely client-side — no server, no hardware.</footer>
+
+<script>
+/*__VISION_PROGRAM__*/
+</script>
+<script>
+(function(){
+  const program = window.__VISION_PROGRAM__ || { sourceName: "(none)", instructions: [] };
+  document.getElementById("srcName").textContent = program.sourceName;
+
+  const instructions = program.instructions;
+  const logEl = document.getElementById("log");
+  const stateEl = document.getElementById("state");
+  const stageEl = document.getElementById("stageEl");
+  const rig = document.getElementById("rig");
+  const pupilL = document.getElementById("pupilL");
+  const pupilR = document.getElementById("pupilR");
+  const glintL = document.getElementById("glintL");
+  const glintR = document.getElementById("glintR");
+  const eyelidL = document.getElementById("eyelid-l");
+  const eyelidR = document.getElementById("eyelid-r");
+  const bubble = document.getElementById("bubble");
+  const flash = document.getElementById("flash");
+  const stopchip = document.getElementById("stopchip");
+  const floor = document.getElementById("floor");
+  const speedInput = document.getElementById("speed");
+  const speedVal = document.getElementById("speedVal");
+  const btnPlay = document.getElementById("btnPlay");
+  const btnStep = document.getElementById("btnStep");
+  const btnReset = document.getElementById("btnReset");
+  const progressFill = document.getElementById("progressFill");
+  const statusLed = document.getElementById("statusLed");
+  const statusText = document.getElementById("statusText");
+  const hbLed = document.getElementById("hbLed");
+
+  // ---- ambient dust particles (purely cosmetic) ------------------------
+  (function spawnDust(){
+    const n = 14;
+    for (let i = 0; i < n; i++){
+      const d = document.createElement("div");
+      d.className = "dust";
+      const size = 1 + Math.random() * 2;
+      d.style.width = size + "px"; d.style.height = size + "px";
+      d.style.left = (10 + Math.random() * 80) + "%";
+      d.style.top = (20 + Math.random() * 60) + "%";
+      const dur = 6 + Math.random() * 8, delay = Math.random() * 8;
+      d.style.animation = "floaty " + dur + "s ease-in-out " + delay + "s infinite";
+      stageEl.appendChild(d);
+    }
+    const style = document.createElement("style");
+    style.textContent = "@keyframes floaty{0%{transform:translateY(0);opacity:0}10%{opacity:.25}50%{transform:translateY(-40px);opacity:.5}90%{opacity:.15}100%{transform:translateY(-90px);opacity:0}}";
+    document.head.appendChild(style);
+  })();
+
+  // ---- robot state ---------------------------------------------------
+  const state = {
+    eyeAngle: 90, bodyTurn: 0, walking: false, dancing: false,
+    emergencyStopped: false, lastEvent: "—",
+  };
+  let bubbleTimer = null, actionTimer = null;
+
+  function eyeOffset(angle){
+   const t = (angle - 90) / 90;
+  return { dx: t * 14, dy: Math.abs(t) * 4 };
+  }
+
+  function render(){
+    const { dx, dy } = eyeOffset(state.eyeAngle);
+ pupilL.setAttribute("cx", 120 + dx); pupilL.setAttribute("cy", 116 + dy);
+    pupilR.setAttribute("cx", 240 + dx); pupilR.setAttribute("cy", 116 + dy);
+    glintL.setAttribute("cx", 108 + dx * .6); glintL.setAttribute("cy", 102 + dy * .5);
+    glintR.setAttribute("cx", 228 + dx * .6); glintR.setAttribute("cy", 102 + dy * .5);
+
+    rig.style.transform = "rotate(" + state.bodyTurn + "deg)";
+    rig.classList.toggle("walk", state.walking && !state.dancing && !state.emergencyStopped);
+    rig.classList.toggle("dance", state.dancing && !state.emergencyStopped);
+    rig.classList.toggle("stopped", state.emergencyStopped);
+
+    flash.classList.toggle("show", state.emergencyStopped);
+    stopchip.classList.toggle("show", state.emergencyStopped);
+    floor.style.opacity = state.emergencyStopped ? .3 : .85;
+
+    const busy = state.walking || state.dancing;
+    statusLed.className = "led " + (state.emergencyStopped ? "stop" : (busy ? "on" : ""));
+    statusText.textContent = state.emergencyStopped ? "e-stopped" : (state.dancing ? "dancing" : state.walking ? "walking" : "idle");
+
+    stateEl.innerHTML =
+      "<span>Eye angle</span><b>" + state.eyeAngle + "°</b>" +
+      "<span>Body turn</span><b>" + Math.round(state.bodyTurn) + "°</b>" +
+      "<span>Walking</span><b>" + (state.walking ? "yes" : "no") + "</b>" +
+      "<span>Dancing</span><b>" + (state.dancing ? "yes" : "no") + "</b>" +
+      "<span>E-stop</span><b style='color:" + (state.emergencyStopped ? "var(--bad)" : "var(--text)") + "'>" +
+        (state.emergencyStopped ? "STOPPED" : "clear") + "</b>" +
+      "<span>Last event</span><b style='font-family:ui-monospace,monospace;font-size:11px;'>" + state.lastEvent + "</b>";
+  }
+
+  function say(text, ms){
+    bubble.textContent = text;
+    bubble.classList.add("show");
+    clearTimeout(bubbleTimer);
+    bubbleTimer = setTimeout(() => bubble.classList.remove("show"), ms || 2400);
+  }
+
+  function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
+  function speedMultiplier(){ return parseFloat(speedInput.value); }
+
+  function timedAction(fn, durationMs){
+    clearTimeout(actionTimer);
+    fn(true); render();
+    actionTimer = setTimeout(() => { fn(false); render(); }, Math.max(150, (durationMs || 600)) / speedMultiplier());
+  }
+
+  function blink(){
+    if (!state.emergencyStopped){
+      eyelidL.style.transform = "scaleY(.08)"; eyelidR.style.transform = "scaleY(.08)";
+      setTimeout(() => { eyelidL.style.transform = "scaleY(1)"; eyelidR.style.transform = "scaleY(1)"; }, 110);
+    }
+    setTimeout(blink, 2600 + Math.random() * 2600);
+  }
+  setTimeout(blink, 1800);
+  setInterval(() => { hbLed.style.opacity = hbLed.style.opacity === "0.25" ? "1" : "0.25"; }, 650);
+
+  function apply(instr){
+    if (instr.op === "SLEEP") { state.lastEvent = "WAIT " + instr.ms + "ms"; render(); return; }
+    if (instr.op === "LOG") { state.lastEvent = "PRINT"; render(); return; }
+
+    const cmd = instr.command, arg = instr.arg;
+    state.lastEvent = cmd + (arg !== undefined ? " " + arg : "");
+
+    switch (cmd) {
+      case "EYE_CENTER": state.eyeAngle = 90; break;
+      case "EYE_SET": if (typeof arg === "number") state.eyeAngle = clamp(arg, 0, 180); break;
+      case "EYE_LEFT": state.eyeAngle = clamp(state.eyeAngle - (typeof arg === "number" ? arg : 15), 0, 180); break;
+      case "EYE_RIGHT": state.eyeAngle = clamp(state.eyeAngle + (typeof arg === "number" ? arg : 15), 0, 180); break;
+      case "EYE_TRACK_PERSON": if (typeof arg === "number") state.eyeAngle = clamp(arg, 0, 180); break;
+
+      case "TURN_LEFT": timedAction(on => { state.bodyTurn += on ? -20 : 20; }, typeof arg === "number" ? arg : 600); break;
+      case "TURN_RIGHT": timedAction(on => { state.bodyTurn += on ? 20 : -20; }, typeof arg === "number" ? arg : 600); break;
+      case "WALK_FORWARD": case "WALK_BACKWARD":
+        timedAction(on => { state.walking = on; }, typeof arg === "number" ? arg : 800); break;
+      case "WALK_STOP": state.walking = false; break;
+      case "DANCE": timedAction(on => { state.dancing = on; }, typeof arg === "number" ? arg : 3000); break;
+
+      case "EMERGENCY_STOP": state.emergencyStopped = true; state.walking = false; state.dancing = false; break;
+      case "EMERGENCY_CLEAR": state.emergencyStopped = false; break;
+
+      case "AUDIO_SPEAK": if (typeof arg === "string") say(arg); break;
+      case "FIND_PERSON": say("Looking for " + (arg || "someone") + "…"); break;
+      default: break;
+    }
+    render();
+  }
+
+  instructions.forEach((instr, i) => {
+    const row = document.createElement("div");
+    row.className = "row";
+    row.id = "row-" + i;
+    if (instr.op === "SLEEP") {
+      row.innerHTML = "<span class='ln'>" + instr.line + "</span><span class='sleep'>WAIT " + instr.ms + "ms</span>";
+    } else if (instr.op === "LOG") {
+      row.innerHTML = "<span class='ln'>" + instr.line + "</span><span class='logmsg'>PRINT \"" + instr.message + "\"</span>";
+    } else {
+      row.innerHTML = "<span class='ln'>" + instr.line + "</span><span class='cmd'>" + instr.command + "</span>" +
+        (instr.arg !== undefined ? " <span class='arg'>" + JSON.stringify(instr.arg) + "</span>" : "");
+    }
+    logEl.appendChild(row);
+  });
+
+  let cursor = 0, playing = false, playTimer = null;
+
+  function highlight(i){
+    const prev = logEl.querySelector(".row.active");
+    if (prev) { prev.classList.remove("active"); prev.classList.add("done"); }
+    const row = document.getElementById("row-" + i);
+    if (row) { row.classList.add("active"); row.classList.remove("done"); row.scrollIntoView({ block: "nearest" }); }
+    progressFill.style.width = (instructions.length ? (i / instructions.length) * 100 : 0) + "%";
+  }
+
+  function stepOnce(){
+    if (cursor >= instructions.length) { pause(); progressFill.style.width = "100%"; return false; }
+    const instr = instructions[cursor];
+    highlight(cursor);
+    apply(instr);
+    cursor++;
+    return true;
+  }
+
+  function scheduleNext(){
+    if (!playing) return;
+    if (cursor >= instructions.length) { pause(); return; }
+    const instr = instructions[cursor];
+    const delay = instr.op === "SLEEP" ? instr.ms / speedMultiplier() : 130 / speedMultiplier();
+    stepOnce();
+    playTimer = setTimeout(scheduleNext, delay);
+  }
+
+  function play(){
+    if (cursor >= instructions.length) reset();
+    playing = true;
+    btnPlay.innerHTML = "⏸&nbsp; Pause";
+    scheduleNext();
+  }
+  function pause(){
+    playing = false;
+    btnPlay.innerHTML = "▶&nbsp; Play";
+    clearTimeout(playTimer);
+  }
+  function reset(){
+    pause();
+    clearTimeout(actionTimer); clearTimeout(bubbleTimer);
+    cursor = 0;
+    Object.assign(state, { eyeAngle: 90, bodyTurn: 0, walking: false, dancing: false, emergencyStopped: false, lastEvent: "—" });
+    bubble.classList.remove("show");
+    progressFill.style.width = "0%";
+    render();
+    logEl.querySelectorAll(".row").forEach(r => r.classList.remove("active", "done"));
+  }
+
+  btnPlay.addEventListener("click", () => playing ? pause() : play());
+  btnStep.addEventListener("click", () => { pause(); stepOnce(); });
+  btnReset.addEventListener("click", reset);
+  speedInput.addEventListener("input", () => { speedVal.textContent = speedInput.value + "×"; });
+
+  render();
+})();
+</script>
+</body>
+</html>
