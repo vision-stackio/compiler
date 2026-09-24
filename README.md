@@ -1,7 +1,6 @@
 <p align="center">
   <a>
-    <!-- Replace with your actual logo path when ready -->
-    <img alt="Vision Script Logo" src="/public/logo/vscript.png" width="132" onerror="this.src='https://shields.io'">
+    <img alt="Vision Script Logo" src="/assets/logo/Vision.png" width="132" onerror="this.src='https://shields.io'">
   </a>
 </p>
 
