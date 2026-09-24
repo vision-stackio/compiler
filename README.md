@@ -1,81 +1,84 @@
-# Vision Script Compiler + Simulator
+<p align="center">
+  <a>
+    <!-- Replace with your actual logo path when ready -->
+    <img alt="Vision Script Logo" src="/public/logo/vscript.png" width="132" onerror="this.src='https://shields.io'">
+  </a>
+</p>
 
-This package contains **only** the Vision Script compiler pipeline
-(lexer → parser → semantic analysis → IR) extracted from the full robot
-project, plus a small CLI that compiles a `.vscript` file and generates a
-**self-contained HTML file** that visually simulates the robot (the
-big-eyed head shown in your reference image) acting out the compiled
-program in the browser — no server, no hardware, nothing else required.
+<p align="center">
+  <a href="https://discord.com/users/thearijiiiitttt_"><img alt="Discord" src="https://img.shields.io/badge/discord-community-5865F2?style=flat-square&logo=discord&logoColor=white" /></a>
+  <a href="#-setup"><img alt="Node" src="https://img.shields.io/badge/node-18%2B-339933?style=flat-square&logo=node.js&logoColor=white" /></a>
+</p>
 
-## Layout
+<p align="center">
+  <b>Vision Script Compiler + Simulator</b>: A local-first compiler pipeline and visual robot simulator 📦
+</p>
 
-```
-compiler/          The compiler itself (lexer/parser/ast/semantic/ir), untouched.
-packages/types.ts   The one external file the compiler depends on (CommandType list).
-bin/simulate.ts      CLI: source file -> compiles -> writes HTML simulation.
-assets/simulator.html  HTML/CSS/JS template the CLI fills in with the compiled IR.
-test/scripts/        Example .vscript programs to try.
-test/output/          Where generated simulation HTML files land (git-ignored in spirit).
-test/unit/            The original compiler unit tests (vitest), unmodified logic.
-```
+> **Note:** This package contains **only** the Vision Script compiler pipeline (lexer → parser → semantic analysis → IR) extracted from the full robot project. It includes a small CLI that compiles a `.vscript` file and generates a **self-contained HTML file** that visually simulates the robot acting out the compiled program directly in your browser. No server, no hardware, nothing else required.
+
+---
+
+## Table of Contents
+1. [Layout](#-layout)
+2. [Setup](#-setup)
+3. [Run a Script & Get the Simulation](#-run-a-script--get-the-simulation)
+4. [Run the Compiler's Own Tests](#-run-the-compilers-own-tests)
+5. [Notes & Technical Details](#-notes--technical-details)
+
+<br/>
+
 
 ## Setup
 
 ```bash
+# Install dependencies
 npm install
 ```
 
-## Run a script and get the simulation
+<br/>
+
+## Run a Script & Get the Simulation
 
 ```bash
 npm run simulate -- test/scripts/demo.vscript
 ```
 
-This compiles `test/scripts/demo.vscript` and writes
-`test/output/demo.html`. Open it in any browser:
+This compiles `test/scripts/demo.vscript` and writes `test/output/demo.html`. You can open it in any browser using your OS-specific command:
 
-```bash
-open test/output/demo.html        # macOS
-xdg-open test/output/demo.html    # Linux
-start test/output/demo.html       # Windows
-```
+| Operating System | Command |
+| :--- | :--- |
+| **macOS** | `open test/output/demo.html` |
+| **Linux** | `xdg-open test/output/demo.html` |
+| **Windows** | `start test/output/demo.html` |
 
-You'll see the robot head with its two eyes moving as `EYE_SET` /
-`EYE_LEFT` / `EYE_RIGHT` / `EYE_CENTER` execute, the body turning for
-`TURN_LEFT` / `TURN_RIGHT`, a walking bob for `WALK_FORWARD` /
-`WALK_BACKWARD`, a dance wiggle for `DANCE`, a speech bubble for
-`AUDIO_SPEAK`, and a live instruction log with Play / Pause / Step /
-Reset and a speed slider. `PRINT` output shows up in the log panel too.
+### What you will see inside the Simulator:
+* **Robot Head Visuals:** A big-eyed head animation reacting in real-time.
+* **Eye Movements:** Eyes move dynamically as `EYE_SET`, `EYE_LEFT`, `EYE_RIGHT`, or `EYE_CENTER` execute.
+* **Body Rotations:** The body turns on screen during `TURN_LEFT` and `TURN_RIGHT`.
+* **Animations:** A walking bob effect for `WALK_FORWARD` / `WALK_BACKWARD` and a wiggle animation for `DANCE`.
+* **Audio & Logging:** A physical speech bubble pops up for `AUDIO_SPEAK`.
+* **Control Panel:** A live instruction log equipped with Play, Pause, Step, Reset buttons, and an execution speed slider. `PRINT` outputs show up directly inside the log panel.
 
-You can point the command at any script and choose the output path:
-
+You can point the command at **any script** and choose your own custom output path:
 ```bash
 npm run simulate -- path/to/your.vscript path/to/output.html
 ```
 
-If the script fails to compile, the CLI prints the compiler's
-diagnostics (`line:column: severity: message`) and exits non-zero — no
-HTML is written.
+> ⚠️ **Compilation Safety:** If the script fails to compile, the CLI prints the compiler's native diagnostics (`line:column: severity: message`) and exits non-zero — no HTML is written.
 
-## Run the compiler's own tests
+<br/>
+
+## Run the Compiler's Own Tests
 
 ```bash
 npm test
 ```
+This runs the original unit tests against the extracted compiler (lexer, parser, semantic analyzer, IR generation, loops, variables, IF/RANDOM, etc.) to confirm absolutely nothing was broken while pulling the compiler out of the larger project.
 
-Runs the original unit tests against the extracted compiler (lexer,
-parser, semantic analyzer, IR generation, loops, variables, IF/RANDOM,
-etc.) to confirm nothing was broken while pulling the compiler out of
-the larger project.
+<br/>
 
-## Notes
+## Notes & Technical Details
 
-- The simulator is a visual approximation for understanding script
-  behavior — it is not the real hardware simulation, and durations
-  (`WALK_FORWARD 1200`, `TURN_LEFT 600`, etc.) are shown proportionally,
-  not physically accurate.
-- `EYE_SET`/`EYE_TRACK_PERSON` take an absolute angle 0–180 (90 = center);
-  `EYE_LEFT`/`EYE_RIGHT` take an optional relative step (default 15°).
-- Everything not touching the eyes/body/speech (camera, audio-listening,
-  memory, tasks, etc.) is accepted by the compiler but has no visual
-  effect in the simulator — it just appears in the instruction log.
+* **Visual Approximation:** The simulator is built to help you understand script behavior quickly — it is not a real-time hardware physics simulation. Action durations (`WALK_FORWARD 1200`, `TURN_LEFT 600`, etc.) are rendered proportionally rather than physically accurate.
+* **Eye Parameters:** `EYE_SET` and `EYE_TRACK_PERSON` take an absolute angle from `0–180` (where `90` is center). `EYE_LEFT` and `EYE_RIGHT` take an optional relative step parameter (defaults to `15°`).
+* **Non-Visual Commands:** Commands not interacting directly with the eyes, body
