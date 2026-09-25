@@ -38,7 +38,17 @@ if (result.diagnostics.length > 0) {
 const baseName = inputArg.replace(/^.*[\\/]/, "").replace(/\.[^.]+$/, "") || "program";
 const outputPath = resolve(process.cwd(), outputArg || `test/output/${baseName}.html`);
 
-const template = readFileSync(resolve(__dirname, "../assets/simulator.html"), "utf8");
+const templatePath = resolve(__dirname, "../assets/simulator.html");
+if (outputPath === templatePath) {
+  console.error(
+    `Refusing to write output on top of the template: ${templatePath}\n` +
+      `That file is the clean simulator template — it must never be the output path.\n` +
+      `Leave the output argument empty (writes to test/output/${baseName}.html) or choose a different path.`
+  );
+  process.exit(1);
+}
+
+const template = readFileSync(templatePath, "utf8");
 const payload = JSON.stringify({
   sourceName: inputArg,
   source,
