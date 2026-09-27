@@ -155815,20 +155815,9 @@ f 51571 51586 51570
       if (model && !mode.stopped){
         var bob=0, sway=0, lean=0;
         if (mode.dancing){
-          // Layered dance on a solid mesh: bounce, hip rock, lean, spin wiggle, small circle
-          var beat = t * 6.2;           // main groove
-          var half = t * 3.1;           // slower body wave
-          var double = t * 12.4;        // quick shoulder shake
-          var bounce = Math.abs(Math.sin(beat));
-          bob = (0.55 * bounce + 0.25 * Math.abs(Math.sin(double)) + 0.12) * radius * 0.11;
-          sway = Math.sin(beat) * 0.28 + Math.sin(half) * 0.10;          // hip sway
-          lean = Math.sin(half * 1.15) * 0.14 + Math.sin(double) * 0.04; // forward/back groove
-          // gentle spin / shoulder twist on top of body heading
-          var danceYaw = Math.sin(beat * 0.5) * 0.18 + Math.sin(double) * 0.05;
-          // tiny circular footwork so it doesn't dance in a fixed spot
-          root.position.x += Math.sin(half) * radius * 0.006;
-          root.position.z += Math.cos(half * 1.3) * radius * 0.005;
-          root.rotation.y = Math.PI + (bodyTurnDeg * Math.PI / 180) + danceYaw;
+          bob = Math.abs(Math.sin(t*7.8))*radius*0.09;
+          sway = Math.sin(t*7.8)*0.22;
+          lean = Math.sin(t*3.9)*0.09;
         } else if (mode.walking){
           // Human-like step cycle on a solid mesh: stronger bob, weight shift, lean
           var step = t * 8.5;
@@ -155845,13 +155834,8 @@ f 51571 51586 51570
           root.position.z += Math.cos(yaw) * speed - Math.sin(yaw) * stepSin * radius * 0.004;
         }
         var eyeYaw = ((eyeAngleDeg-90)/90) * 0.28;
-        if (!mode.dancing) {
-          var walkYawWiggle = mode.walking ? Math.sin(t * 8.5) * 0.06 : 0;
-          root.rotation.y = Math.PI + (bodyTurnDeg*Math.PI/180) + eyeYaw*0.4 + walkYawWiggle;
-        } else {
-          // eye glance still applies lightly on top of dance spin
-          root.rotation.y += eyeYaw * 0.25;
-        }
+        var walkYawWiggle = mode.walking ? Math.sin(t * 8.5) * 0.06 : 0;
+        root.rotation.y = Math.PI + (bodyTurnDeg*Math.PI/180) + eyeYaw*0.4 + walkYawWiggle;
         root.rotation.z = sway;
         root.rotation.x = lean;
         root.position.y = bob;
