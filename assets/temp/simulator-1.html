@@ -155656,7 +155656,7 @@ f 51571 51586 51570
     var view = { theta: Math.PI * 0, phi: Math.PI / 2, dist: 3 };
     var target = new THREE.Vector3();
     var t = 0;
-    var mode = { walking:false, walkDir:1, dancing:false, stopped:false };
+    var mode = { walking:false, dancing:false, stopped:false };
     var bodyTurnDeg = 0, eyeAngleDeg = 90;
     var frameCount = 0, lastFpsTime = performance.now(), currentFps = 0;
     var onFps = null, onCam = null;
@@ -155819,30 +155819,14 @@ f 51571 51586 51570
           sway = Math.sin(t*7.8)*0.22;
           lean = Math.sin(t*3.9)*0.09;
         } else if (mode.walking){
-          // Human-like step cycle on a solid mesh: stronger bob, weight shift, lean
-          var step = t * 8.5;
-          var stepSin = Math.sin(step);
-          var stepAbs = Math.abs(stepSin);
-          bob = stepAbs * radius * 0.07;
-          sway = stepSin * 0.12;
-          lean = Math.sin(step * 0.5) * 0.06;
-          // Translate along facing axis (local forward)
-          var yaw = (bodyTurnDeg * Math.PI) / 180;
-          var speed = radius * 0.045 * mode.walkDir;
-          // slight lateral shift over the stance leg
-          root.position.x += Math.sin(yaw) * speed + Math.cos(yaw) * stepSin * radius * 0.004;
-          root.position.z += Math.cos(yaw) * speed - Math.sin(yaw) * stepSin * radius * 0.004;
+          bob = Math.abs(Math.sin(t*8.5))*radius*0.035;
+          sway = Math.sin(t*4.25)*0.035;
         }
         var eyeYaw = ((eyeAngleDeg-90)/90) * 0.28;
-        var walkYawWiggle = mode.walking ? Math.sin(t * 8.5) * 0.06 : 0;
-        root.rotation.y = Math.PI + (bodyTurnDeg*Math.PI/180) + eyeYaw*0.4 + walkYawWiggle;
+        root.rotation.y = Math.PI + (bodyTurnDeg*Math.PI/180) + eyeYaw*0.4;
         root.rotation.z = sway;
         root.rotation.x = lean;
         root.position.y = bob;
-        // Camera follows robot
-        target.x = root.position.x;
-        target.z = root.position.z;
-        updateCamera();
       } else if (model && mode.stopped){
         root.rotation.z *= 0.9; root.rotation.x *= 0.9; root.position.y *= 0.85;
       }
@@ -155854,7 +155838,7 @@ f 51571 51586 51570
     return {
       setBodyTurn: function(deg){ bodyTurnDeg = deg; },
       setEyeAngle: function(deg){ eyeAngleDeg = deg; },
-      setWalking: function(v, dir){ mode.walking = !!v; if (dir !== undefined) mode.walkDir = dir >= 0 ? 1 : -1; },
+      setWalking: function(v){ mode.walking = v; },
       setDancing: function(v){ mode.dancing = v; },
       setStopped: function(v){ mode.stopped = v; },
       resetCamera: function(){
@@ -155870,13 +155854,7 @@ f 51571 51586 51570
         updateCamera();
       },
       onFps: function(fn){ onFps = fn; },
-      onCam: function(fn){ onCam = fn; },
-      resetPosition: function(){
-        if (!root) return;
-        root.position.x = 0; root.position.z = 0; root.position.y = 0;
-        target.x = 0; target.z = 0;
-        updateCamera();
-      }
+      onCam: function(fn){ onCam = fn; }
     };
   })();
 
@@ -155915,7 +155893,7 @@ f 51571 51586 51570
   var badgeDance = document.getElementById('badgeDance');
   var badgeEstop = document.getElementById('badgeEstop');
 
-  var state = { eyeAngle:90, bodyTurn:0, walking:false, walkDir:1, dancing:false, emergencyStopped:false, lastEvent:'—' };
+  var state = { eyeAngle:90, bodyTurn:0, walking:false, dancing:false, emergencyStopped:false, lastEvent:'—' };
   var bubbleTimer=null, actionTimer=null;
   var logFilter = 'all';
 
@@ -156036,7 +156014,7 @@ f 51571 51586 51570
   function render(){
     Rig.setEyeAngle(state.eyeAngle);
     Rig.setBodyTurn(state.bodyTurn);
-    Rig.setWalking(state.walking && !state.dancing && !state.emergencyStopped, state.walkDir);
+    Rig.setWalking(state.walking && !state.dancing && !state.emergencyStopped);
     Rig.setDancing(state.dancing && !state.emergencyStopped);
     Rig.setStopped(state.emergencyStopped);
 
@@ -156099,22 +156077,10 @@ f 51571 51586 51570
       case 'EYE_RIGHT': state.eyeAngle = clamp(state.eyeAngle + (typeof arg === 'number' ? arg : 15), 0, 180); break;
       case 'EYE_TRACK_PERSON': if (typeof arg === 'number') state.eyeAngle = clamp(arg, 0, 180); break;
 
-      case 'TURN_LEFT':
-        state.bodyTurn -= 90;
-        timedAction(function(on){}, typeof arg === 'number' ? arg : 600);
-        break;
-      case 'TURN_RIGHT':
-        state.bodyTurn += 90;
-        timedAction(function(on){}, typeof arg === 'number' ? arg : 600);
-        break;
-      case 'WALK_FORWARD':
-        state.walkDir = 1;
-        timedAction(function(on){ state.walking = on; }, typeof arg === 'number' ? arg : 800);
-        break;
-      case 'WALK_BACKWARD':
-        state.walkDir = -1;
-        timedAction(function(on){ state.walking = on; }, typeof arg === 'number' ? arg : 800);
-        break;
+      case 'TURN_LEFT': timedAction(function(on){ state.bodyTurn += on ? -20 : 20; }, typeof arg === 'number' ? arg : 600); break;
+      case 'TURN_RIGHT': timedAction(function(on){ state.bodyTurn += on ? 20 : -20; }, typeof arg === 'number' ? arg : 600); break;
+      case 'WALK_FORWARD': case 'WALK_BACKWARD':
+        timedAction(function(on){ state.walking = on; }, typeof arg === 'number' ? arg : 800); break;
       case 'WALK_STOP': state.walking = false; break;
       case 'DANCE': timedAction(function(on){ state.dancing = on; }, typeof arg === 'number' ? arg : 3000); break;
 
@@ -156224,8 +156190,7 @@ f 51571 51586 51570
     pause();
     clearTimeout(actionTimer); clearTimeout(bubbleTimer);
     cursor = 0;
-    Object.assign(state, { eyeAngle:90, bodyTurn:0, walking:false, walkDir:1, dancing:false, emergencyStopped:false, lastEvent:'—' });
-    if (Rig.resetPosition) Rig.resetPosition();
+    Object.assign(state, { eyeAngle:90, bodyTurn:0, walking:false, dancing:false, emergencyStopped:false, lastEvent:'—' });
     bubble.classList.remove('show');
     stepCur.textContent = '0';
     stepPct.textContent = '0%';
