@@ -26,6 +26,11 @@
 
 <br/>
 
+## Layout
+<a>
+    <img alt="compiler" src="/assets/images/compiler.png">
+    </a>
+<br/>
 
 ## Setup
 
