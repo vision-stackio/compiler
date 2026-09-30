@@ -156103,17 +156103,23 @@ f 51571 51586 51570
   bubble.textContent = text;
   bubble.classList.add('show');
   clearTimeout(bubbleTimer);
-  bubbleTimer = setTimeout(function(){ bubble.classList.remove('show'); }, ms || 2400);
 
-  // Real voice
+  // Estimate how long the speech will take (roughly 60ms per character)
+  var estimatedMs = Math.max(ms || 2400, text.length * 60);
+
+  bubbleTimer = setTimeout(function(){ bubble.classList.remove('show'); }, estimatedMs);
+
   if (window.speechSynthesis) {
-    window.speechSynthesis.cancel();          // stop previous speech
+    window.speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(text);
-    u.rate = 1.0;     // speed (0.5 – 2)
-    u.pitch = 1.0;    // pitch
-    u.volume = 1.0;   // volume
+    u.rate = 1.05;      // slightly faster so it feels natural
+    u.pitch = 1.0;
+    u.volume = 1.0;
     window.speechSynthesis.speak(u);
   }
+
+  // Return the estimated duration so the simulator can wait
+  return estimatedMs;
 }
 
   function clamp(v, lo, hi){ return Math.max(lo, Math.min(hi, v)); }
@@ -156169,7 +156175,7 @@ if (instr.op === 'LOG') {
       case 'EMERGENCY_STOP': state.emergencyStopped = true; state.walking = false; state.dancing = false; break;
       case 'EMERGENCY_CLEAR': state.emergencyStopped = false; break;
 
-      case 'AUDIO_SPEAK': if (typeof arg === 'string') say(arg); break;
+      case 'AUDIO_SPEAK': if (typeof arg === 'string') say(arg, Math.max(1200, arg.length * 65)); break;
       case 'FIND_PERSON': say('Looking for ' + (arg || 'someone') + '…'); break;
       default: break;
     }
@@ -156237,7 +156243,13 @@ if (instr.op === 'LOG') {
     if (DURATIONAL.hasOwnProperty(cmd)) {
       return (typeof instr.arg === 'number' ? instr.arg : DURATIONAL[cmd]) / speedMultiplier();
     }
-    if (cmd === 'AUDIO_SPEAK' || cmd === 'FIND_PERSON') return 900 / speedMultiplier();
+    if (cmd === 'AUDIO_SPEAK') {
+  // Wait based on how long the text will take to speak
+  var text = (typeof instr.arg === 'string') ? instr.arg : '';
+  var speakMs = Math.max(1200, text.length * 65);   // ~65ms per character
+  return speakMs / speedMultiplier();
+}
+if (cmd === 'FIND_PERSON') return 900 / speedMultiplier();
     return 350 / speedMultiplier();
   }
 
