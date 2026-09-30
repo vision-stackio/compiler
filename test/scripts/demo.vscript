@@ -1,4 +1,3 @@
-# Demo Vision Script — exercises eyes, movement, and speech
 EYE_CENTER
 AUDIO_SPEAK "Hello! Watch my eyes."
 WAIT 500
