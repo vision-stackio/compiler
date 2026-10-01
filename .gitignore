@@ -1,2 +1,6 @@
 node_modules/
-test/output/*.html
+downloads/
+bin/
+test/output/
+test/output/music/
+*.log

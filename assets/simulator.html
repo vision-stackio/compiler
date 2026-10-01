@@ -155955,6 +155955,36 @@ f 51571 51586 51570
   logCount.textContent = instructions.length + ' instr';
 
   var DURATIONAL = { TURN_LEFT:600, TURN_RIGHT:600, WALK_FORWARD:800, WALK_BACKWARD:800, DANCE:3000 };
+  var musicAudio = null;
+  function stopMusic(){
+    if (musicAudio) {
+      try { musicAudio.pause(); musicAudio.currentTime = 0; } catch (e) {}
+      musicAudio = null;
+    }
+  }
+  function playMusic(arg){
+    stopMusic();
+    if (typeof arg !== 'string' || !arg.trim()) {
+      say('Playing a song', 1400);
+      return;
+    }
+    var s = arg.trim();
+    // URL, absolute path, relative path, or audio file from simulate download
+    var isAudioPath = /^(https?:|blob:|data:|\/|\.\/)/i.test(s) || /\.(m4a|webm|mp3|opus|ogg)(\?|$)/i.test(s);
+    if (isAudioPath) {
+      try {
+        musicAudio = new Audio(s);
+        musicAudio.volume = 0.9;
+        musicAudio.play().catch(function(err){ console.warn('music play failed', err); say('Could not play audio file', 1400); });
+        say('Playing music…', 1600);
+      } catch (e) {
+        say('Could not play audio', 1400);
+      }
+    } else {
+      say('Playing "' + s + '"', Math.max(1600, s.length * 55));
+    }
+  }
+
   var graphSvg = document.getElementById('timelineGraph');
   var graphClip = null, graphHead = null, graphPts = [];
 
@@ -155968,7 +155998,7 @@ f 51571 51586 51570
     if (cmd === 'WALK_STOP') return 0.2;
     if (cmd === 'TURN_LEFT' || cmd === 'TURN_RIGHT') return 0.56;
     if (cmd.indexOf('EMERGENCY') === 0) return 0.88;
-    if (cmd === 'AUDIO_SPEAK' || cmd === 'FIND_PERSON') return 0.48;
+    if (cmd === 'AUDIO_SPEAK' || cmd === 'FIND_PERSON' || cmd === 'PLAY_SONG_REQUEST' || cmd === 'PLAY_MUSIC') return 0.48;
     if (cmd.indexOf('EYE') === 0) return 0.38;
     return 0.34;
   }
@@ -156169,13 +156199,21 @@ if (instr.op === 'LOG') {
         state.walkDir = 1;
         timedAction(function(on){ state.walking = on; }, typeof arg === 'number' ? arg : 800);
         break;
-      case 'WALK_STOP': state.walking = false; break;
+      case 'WALK_STOP': state.walking = false; state.dancing = false; stopMusic(); break;
       case 'DANCE': timedAction(function(on){ state.dancing = on; }, typeof arg === 'number' ? arg : 3000); break;
 
-      case 'EMERGENCY_STOP': state.emergencyStopped = true; state.walking = false; state.dancing = false; break;
+      case 'EMERGENCY_STOP': state.emergencyStopped = true; state.walking = false; state.dancing = false; stopMusic(); break;
       case 'EMERGENCY_CLEAR': state.emergencyStopped = false; break;
 
       case 'AUDIO_SPEAK': if (typeof arg === 'string') say(arg, Math.max(1200, arg.length * 65)); break;
+      case 'PLAY_SONG_REQUEST':
+      case 'PLAY_MUSIC':
+        playMusic(arg);
+        break;
+      case 'STOP_MUSIC':
+      case 'AUDIO_STOP':
+        stopMusic();
+        break;
       case 'FIND_PERSON': say('Looking for ' + (arg || 'someone') + '…'); break;
       default: break;
     }
@@ -156249,6 +156287,12 @@ if (instr.op === 'LOG') {
   var speakMs = Math.max(1200, text.length * 65);   // ~65ms per character
   return speakMs / speedMultiplier();
 }
+if (cmd === 'PLAY_SONG_REQUEST' || cmd === 'PLAY_MUSIC') {
+  var song = (typeof instr.arg === 'string') ? instr.arg : '';
+  var musicMs = Math.max(1600, song.length * 55);
+  return musicMs / speedMultiplier();
+}
+if (cmd === 'STOP_MUSIC' || cmd === 'AUDIO_STOP') return 300 / speedMultiplier();
 if (cmd === 'FIND_PERSON') return 900 / speedMultiplier();
     return 350 / speedMultiplier();
   }

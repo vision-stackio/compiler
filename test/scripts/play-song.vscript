@@ -1,0 +1,7 @@
+PRINT "Starting music demo"
+PLAY_MUSIC "Tum Hi Ho"
+WAIT 2000
+DANCE 4000
+WAIT 500
+STOP_MUSIC
+PRINT "Done"
