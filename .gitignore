@@ -4,3 +4,4 @@ bin/
 test/output/
 test/output/music/
 *.log
+package-lock.json

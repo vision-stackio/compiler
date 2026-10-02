@@ -13,7 +13,7 @@
   <b>Vision Script Compiler + Simulator</b>: A local-first compiler pipeline and visual robot simulator 📦
 </p>
 
-> **Note:** This package contains **only** the Vision Script compiler pipeline (lexer → parser → semantic analysis → IR) extracted from the full robot project. It includes a small CLI that compiles a `.vscript` file and generates a **self-contained HTML file** that visually simulates the robot acting out the compiled program directly in your browser. No server, no hardware, nothing else required.
+> **Note:** This package contains **only** the Vision Script compiler pipeline (lexer → parser → semantic analysis → IR) extracted from the full robot project. It includes a small CLI that compiles a `.vscript` file and generates a **self contained HTML file** that visually simulates the robot acting out the compiled program directly in your browser. No server, no hardware, nothing else required.A traditional compiler translates source code into machine code or bytecode while **preserving** the program’s control flow and runtime behavior.The Vision Script compiler is intentionally different. It is a **domain-specific, safety first compiler** that **evaluates as much of the program as possible at compile time**. The final output is a simple, fully resolved, linear sequence of robot instructions.This design prioritizes **predictability, inspectability, and safety** over flexibility and performance.
 
 ---
 
@@ -22,7 +22,8 @@
 2. [Setup](#-setup)
 3. [Run a Script & Get the Simulation](#-run-a-script--get-the-simulation)
 4. [Run the Compiler's Own Tests](#-run-the-compilers-own-tests)
-5. [Notes & Technical Details](#-notes--technical-details)
+5. [Key Differences](##-key-differences)
+6. [Notes & Technical Details](#-notes--technical-details)
 
 <br/>
 
@@ -80,6 +81,22 @@ npm test
 This runs the original unit tests against the extracted compiler (lexer, parser, semantic analyzer, IR generation, loops, variables, IF/RANDOM, etc.) to confirm absolutely nothing was broken while pulling the compiler out of the larger project.
 
 <br/>
+
+
+## Key Differences
+
+| Aspect                    | Traditional Compiler                          | Vision Script Compiler                              |
+|---------------------------|-----------------------------------------------|-----------------------------------------------------|
+| **Primary Goal**          | Generate fast, general-purpose machine code   | Generate a safe and predictable robot program       |
+| **Final Output**          | Machine code / bytecode / assembly            | Flat IR (`EXEC` / `SLEEP` / `LOG`) + HTML simulator |
+| **Target Runtime**        | CPU or Virtual Machine                        | Physical robot or browser visual simulator          |
+| **Language Type**         | General-purpose                               | Domain-specific (robot control only)                |
+| **Runtime Loops**         | Supported                                     | Not supported (fully unrolled at compile time)      |
+| **Runtime Branching**     | Supported (`if`, `switch`, etc.)              | Not supported (evaluated at compile time)           |
+| **Dynamic Values**        | Supported (input, sensors, time, etc.)        | Not supported                                       |
+| **Variables at Runtime**  | Yes                                           | No (all values resolved before IR is produced)      |
+| **Safety Limits**         | Soft or none                                  | Hard limits (`MAX_REPEAT=100`, `MAX_NESTING=5`, `MAX_INSTRUCTIONS=500`) |
+
 
 ## Notes & Technical Details
 
