@@ -84,19 +84,18 @@ This runs the original unit tests against the extracted compiler (lexer, parser,
 
 
 ## Key Differences
-
-| Aspect                    | Traditional Compiler                          | Vision Script Compiler                              |
-|---------------------------|-----------------------------------------------|-----------------------------------------------------|
-| **Primary Goal**          | Generate fast, general-purpose machine code   | Generate a safe and predictable robot program       |
-| **Final Output**          | Machine code / bytecode / assembly            | Flat IR (`EXEC` / `SLEEP` / `LOG`) + HTML simulator |
-| **Target Runtime**        | CPU or Virtual Machine                        | Physical robot or browser visual simulator          |
-| **Language Type**         | General-purpose                               | Domain-specific (robot control only)                |
-| **Runtime Loops**         | Supported                                     | Not supported (fully unrolled at compile time)      |
-| **Runtime Branching**     | Supported (`if`, `switch`, etc.)              | Not supported (evaluated at compile time)           |
-| **Dynamic Values**        | Supported (input, sensors, time, etc.)        | Not supported                                       |
-| **Variables at Runtime**  | Yes                                           | No (all values resolved before IR is produced)      |
-| **Safety Limits**         | Soft or none                                  | Hard limits (`MAX_REPEAT=100`, `MAX_NESTING=5`, `MAX_INSTRUCTIONS=500`) |
-
+| Aspect                   | Traditional Compiler                              | Vision Script Compiler                                              |
+| ------------------------ | ------------------------------------------------- | ------------------------------------------------------------------- |
+| **Primary Goal**         | Generate fast, general-purpose machine/bytecode   | Generate a safe, fully predictable robot program                    |
+| **Final Output**         | Machine code / bytecode / assembly                | Flat IR (`EXEC` / `SLEEP` / `LOG`) + HTML simulator                 |
+| **Target Runtime**       | CPU or Virtual Machine                            | Physical robot or browser visual simulator                          |
+| **Language Type**        | General-purpose                                   | Domain-specific (robot control only)                                |
+| **Runtime Loops**        | Supported                                         | Not supported — fully unrolled at compile time                      |
+| **Runtime Branching**    | Supported (`if`, `switch`, etc.)                  | Not supported — conditions evaluated at compile time                |
+| **Variables at Runtime** | Yes                                               | No — all values substituted before IR is produced                   |
+| **Dynamic / Random**     | Runtime evaluation                                | `RANDOM` is rolled once at compile time                             |
+| **Arithmetic**           | Evaluated at runtime                              | Fully folded at compile time                                        |
+| **Safety Limits**        | Soft or none                                      | Hard limits (`MAX_REPEAT=100`, `MAX_NESTING=5`, `MAX_INSTRUCTIONS=500`) |
 
 ## Notes & Technical Details
 
